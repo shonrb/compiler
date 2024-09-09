@@ -1,0 +1,5 @@
+proc foo (x Int, y Int) Int =
+  s String = "hello, \"world\"\n"; # This is a comment
+  return x - y; 
+end
+
