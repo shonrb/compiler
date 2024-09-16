@@ -1,4 +1,5 @@
 import Lex
+import ParsePass1
 
 import System.Environment (getArgs)
 
@@ -9,6 +10,6 @@ main = do
     [] -> putStrLn "An input file is required"
     (file : []) -> do
       contents <- readFile file
-      mapM_ print $ lexAll contents
+      print (parseDefinitionShapes (lexAll contents))
     _ -> putStrLn "Too many input files"
 

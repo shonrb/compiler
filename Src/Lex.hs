@@ -3,68 +3,84 @@ module Lex where
 import Data.Char
 
 data Token 
-  = Id String
-  | IntLiteral Int
-  | FloatLiteral Float
-  | StrLiteral String
-  | CharLiteral Char
-  | OpenBracket 
-  | CloseBracket 
-  | EndLine
-  | Comma
-  | Error String
+  = TId String
+  | TIntLiteral Int
+  | TFloatLiteral Float
+  | TStrLiteral String
+  | TCharLiteral Char
+  | TOpenBracket 
+  | TCloseBracket 
+  | TOpenCurly 
+  | TCloseCurly 
+  | TStartDef
+  | TEndDef
+  | TMapTo
+  | TDefBodyStart
+  | TComma
+  | TEquals
+  | TError String
   deriving (Show, Eq)
 
 lexAll :: String -> [Token]
 lexAll [] = []
 lexAll str@(c : cs)
-  | elem c singles        = lexSingle c : lexAll cs
   | isSpace c             = lexAll cs
+  | c == '('              = TOpenBracket  : lexAll cs
+  | c == ')'              = TCloseBracket : lexAll cs
+  | c == '{'              = TOpenCurly  : lexAll cs
+  | c == '}'              = TCloseCurly : lexAll cs
   | c == '#'              = lexComment cs
   | c == '"'              = lexStrLiteral cs
   | c == '\''             = lexCharLiteral cs
-  | isDigit c || c == '.' = lexNumber str
-  | otherwise             = lexIdent str
-
-singles :: String 
-singles = "();,"
-
-lexSingle :: Char -> Token
-lexSingle '(' = OpenBracket
-lexSingle ')' = CloseBracket
-lexSingle ';' = EndLine
-lexSingle ',' = Comma
+  | isDigit c             = lexNumber str
+  | isSymChar c           = lexSymbol str
+  | isAlpha c || c == '_' = lexIdent str
+  | otherwise             = TError "Unrecognised Character" : lexAll cs
 
 lexComment :: String -> [Token]
 lexComment = lexAll . dropWhile (/='\n')
 
 lexNumber :: String -> [Token]
-lexNumber = lexWord $ \s -> IntLiteral 0 -- TODO: Number parsing
+lexNumber = lexN (\c -> isWordChar c || c == '.') $ \s -> TIntLiteral 0 -- TODO: Number parsing
+
+lexSymbol :: String -> [Token]
+lexSymbol = lexN isSymChar makeSym where
+  makeSym "->" = TMapTo
+  makeSym ";"  = TEndDef
+  makeSym s    = TId s
 
 lexIdent :: String -> [Token]
-lexIdent = lexWord Id
+lexIdent = lexN isWordChar makeWord where
+  makeWord "function" = TStartDef
+  makeWord "is"       = TDefBodyStart
+  makeWord s          = TId s
 
-lexWord :: (String -> Token) -> String -> [Token]
-lexWord mk s = mk (takeWhile isWord s) : lexAll (dropWhile isWord s)
-  where isWord c = not $ isSpace c || elem c singles || elem c "\"'#"
+lexN :: (Char -> Bool) -> (String -> Token) -> String -> [Token]
+lexN included make s = make (takeWhile included s) : lexAll (dropWhile included s)
+
+isWordChar :: Char -> Bool
+isWordChar c = isAlphaNum c || c == '_' 
+
+isSymChar :: Char -> Bool
+isSymChar c = (isSymbol c || isPunctuation c) && not (elem c "(){}#_" )
 
 lexStrLiteral :: String -> [Token]
-lexStrLiteral = lexLiteral StrLiteral '"' []
+lexStrLiteral = lexLiteral TStrLiteral '"' []
 
 lexCharLiteral :: String -> [Token]
 lexCharLiteral = lexLiteral makeChar '\'' [] where
   makeChar s 
-    | length s == 1 = CharLiteral $ head s 
-    | otherwise     = Error "Invalid character literal"
+    | length s == 1 = TCharLiteral $ head s 
+    | otherwise     = TError "Invalid character literal"
 
 lexLiteral :: (String -> Token) -> Char -> String -> String -> [Token]
 lexLiteral mk delim acc ('\\' : c : cs) = case lexEscape c of
   Just n  -> lexLiteral mk delim (acc ++ [n]) cs
-  Nothing -> Error "Invalid Escape Sequence" : []
+  Nothing -> TError "Invalid Escape Sequence" : []
 lexLiteral mk delim acc (c : cs) 
   | c == delim = mk acc : lexAll cs
   | otherwise  = lexLiteral mk delim (acc ++ [c]) cs
-lexLiteral mk delim acc [] = Error "Unterminated Literal" : []
+lexLiteral mk delim acc [] = TError "Unterminated Literal" : []
 
 lexEscape :: Char -> Maybe Char
 lexEscape '\\' = Just '\\'

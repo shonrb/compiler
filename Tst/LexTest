@@ -1,5 +1,10 @@
-proc foo (x Int, y Int) Int =
-  s String = "hello, \"world\"\n"; # This is a comment
-  return x - y; 
-end
+function foo {x: Int} {y: Int} -> Int is
+  # This is a comment
+  let s = "hello, \"world\"\n" in 
+  x - y;
+
+function(5) {x Int} ++ {y Int} -> Int is x + y;
+
+function sq {x: Int} -> Int is x * x;
+
 
