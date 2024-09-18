@@ -3,8 +3,7 @@ function foo {x: Int} {y: Int} -> Int is
   let s = "hello, \"world\"\n" in 
   x - y;
 
-function(5) {x Int} ++ {y Int} -> Int is x + y;
+operator 5 {x Int} ++ {y Int} -> Int is x + y;
 
-function sq {x: Int} -> Int is x * x;
-
+operator 9 sq {x: Int} -> Int is x * x;
 

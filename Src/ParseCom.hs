@@ -32,11 +32,9 @@ instance Alternative Parser where
     Left _  -> parse pb s
 
 runParser :: Parser a -> [Token] -> ParseResult a
-runParser p ts = do
-  (res, extra) <- parse p ts
-  case extra of 
-    [] -> Right res
-    _  -> Left $ "Trailing input: " ++ show extra
+runParser p ts = case parse p ts of
+  Right (res, _) -> Right res
+  Left err       -> Left err
 
 pErr :: String -> Parser a
 pErr msg = Parser $ \s -> Left msg
@@ -70,7 +68,6 @@ pZeroPlus p = pOnePlus p <|> return []
 
 pOptional :: a -> Parser a -> Parser a
 pOptional v p = p <|> return v
-
 
 pGetInt :: Parser Int
 pGetInt = do

@@ -10,6 +10,6 @@ main = do
     [] -> putStrLn "An input file is required"
     (file : []) -> do
       contents <- readFile file
-      print (parseDefinitionShapes (lexAll contents))
+      print (parseTopLevel (lexAll contents))
     _ -> putStrLn "Too many input files"
 

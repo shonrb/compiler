@@ -12,17 +12,19 @@ data Token
   | TCloseBracket 
   | TOpenCurly 
   | TCloseCurly 
-  | TStartDef
-  | TEndDef
-  | TMapTo
+  | TDefFunction
+  | TDefOperator
+  | TDefMapTo
   | TDefBodyStart
+  | TDefEnd
   | TComma
   | TEquals
+  | TEOF
   | TError String
   deriving (Show, Eq)
 
 lexAll :: String -> [Token]
-lexAll [] = []
+lexAll [] = [TEOF]
 lexAll str@(c : cs)
   | isSpace c             = lexAll cs
   | c == '('              = TOpenBracket  : lexAll cs
@@ -45,13 +47,14 @@ lexNumber = lexN (\c -> isWordChar c || c == '.') $ \s -> TIntLiteral 0 -- TODO:
 
 lexSymbol :: String -> [Token]
 lexSymbol = lexN isSymChar makeSym where
-  makeSym "->" = TMapTo
-  makeSym ";"  = TEndDef
+  makeSym "->" = TDefMapTo
+  makeSym ";"  = TDefEnd
   makeSym s    = TId s
 
 lexIdent :: String -> [Token]
 lexIdent = lexN isWordChar makeWord where
-  makeWord "function" = TStartDef
+  makeWord "function" = TDefFunction
+  makeWord "operator" = TDefOperator
   makeWord "is"       = TDefBodyStart
   makeWord s          = TId s
 
