@@ -1,18 +1,20 @@
-module ParsePass1 where
+module ParsePass1 
+  ( MixFixPart (..)
+  , MixFix (..)
+  , PlainFunc (..)
+  , PrelimTopLevel (..)
+  , Symbol (..)
+  , parseTopLevel
+  )
+  where
 
 import ParseCom
 import Lex
 
-import Debug.Trace
-
 import Control.Applicative (Alternative (..), liftA2)
 
-data FunctionCommon = FunctionCommon
-  { id         :: String
-  , returnType :: Maybe [Token]
-  , body       :: [Token]
-  }
-  deriving Show
+class Symbol a where
+  getSymbol :: a -> String
 
 data MixFixPart 
   = MixFixConnector String
@@ -20,58 +22,72 @@ data MixFixPart
   deriving Show
 
 data MixFix = MixFix 
-  { parts      :: [MixFixPart]
-  , precedence :: Int
-  , opRest     :: FunctionCommon
+  { mfParts      :: [MixFixPart]
+  , mfPrecedence :: Int
+  , mfReturns    :: Maybe [Token]
+  , mfBody       :: [Token]
   }
   deriving Show
 
-data PlainFunction = PlainFunction
-  { parameters :: [[Token]]
-  , funcRest   :: FunctionCommon       
+data PlainFunc = PlainFunc
+  { pfName       :: String
+  , pfParameters :: [[Token]]
+  , pfReturns    :: Maybe [Token]
+  , pfBody       :: [Token]
   } 
   deriving Show
 
-data Definition 
-  = DefFunction PlainFunction
-  | DefMixFix   MixFix
+data PrelimTopLevel 
+  = PrelimPlainFunc PlainFunc
+  | PrelimMixFix    MixFix
   deriving Show
 
-parseTopLevel :: [Token] -> Either String [Definition]
+instance Symbol PlainFunc where
+  getSymbol PlainFunc{pfName=n} = n 
+
+instance Symbol MixFix where
+  getSymbol MixFix{mfParts=parts} = collapse parts where
+    collapse [] = []
+    collapse (p : ps) = (case p of 
+      MixFixConnector s -> s
+      MixFixParameter _ -> "{}"
+      ) ++ collapse ps
+
+parseTopLevel :: [Token] -> Either String [PrelimTopLevel]
 parseTopLevel = runParser $ pAll
 
-pAll :: Parser [Definition]
-pAll = (return [] <* pTok TEOF) <|> (liftA2 (:) pTop pAll)
+pAll :: Parser [PrelimTopLevel]
+pAll = return [] <* pTok TEOF <|> liftA2 (:) pTop pAll
 
-pTop :: Parser Definition
+pTop :: Parser PrelimTopLevel
 pTop = do
   t <- pAny
   case t of 
-    TDefFunction -> pDefFunction 
-    TDefOperator -> pDefOperator
+    TDefFunction -> PrelimPlainFunc <$> pDefFunction 
+    TDefOperator -> PrelimMixFix <$> pDefOperator
     _            -> pErr $ "Unknown top-level declaration: " ++ show t
 
-pDefFunction :: Parser Definition
+pDefFunction :: Parser PlainFunc
 pDefFunction = do
   name <- pGetId
   params <- pOnePlus pFuncParam
-  rest <- pFunctionCommon ""
-  return $ DefFunction (PlainFunction params rest)
+  (rt, body) <- pFuncCommon 
+  return $ PlainFunc name params rt body
 
-pDefOperator :: Parser Definition
+pDefOperator :: Parser MixFix
 pDefOperator = do
   precedence <- pGetInt
   parts <- pOnePlus pMixFix
-  rest <- pFunctionCommon ""
-  return $ DefMixFix (MixFix parts precedence rest)
+  (rt, body) <- pFuncCommon 
+  return $ MixFix parts precedence rt body
 
-pFunctionCommon :: String -> Parser FunctionCommon
-pFunctionCommon id = do
+pFuncCommon :: Parser (Maybe [Token], [Token])
+pFuncCommon = do
   rt <- pReturnType
   pTok TDefBodyStart
   body <- pExpr "function body"
   pTok TDefEnd
-  return $ FunctionCommon id rt body
+  return (rt, body)
 
 pReturnType :: Parser (Maybe [Token])
 pReturnType = pOptional Nothing $ Just <$> (pTok TDefMapTo *> pExpr "type declaration")

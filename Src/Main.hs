@@ -1,5 +1,7 @@
 import Lex
+import Ast
 import ParsePass1
+import ParsePass2
 
 import System.Environment (getArgs)
 
