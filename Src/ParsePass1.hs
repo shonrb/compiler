@@ -53,7 +53,11 @@ instance Symbol MixFix where
       MixFixParameter _ -> "{}"
       ) ++ collapse ps
 
-parseTopLevel :: [Token] -> Either String [PrelimTopLevel]
+instance Symbol PrelimTopLevel where
+    getSymbol (PrelimPlainFunc p) = getSymbol p
+    getSymbol (PrelimMixFix m) = getSymbol m
+
+parseTopLevel :: [Token] -> ParseResult [PrelimTopLevel]
 parseTopLevel = runParser $ pAll
 
 pAll :: Parser [PrelimTopLevel]
