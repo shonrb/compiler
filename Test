@@ -1,9 +1,14 @@
 function foo {x: Int} {y: Int} -> Int is
   # This is a comment
-  let s = "hello, \"world\"\n" in 
+  s: String = "hello, \"world\"\n" in 
   x - y;
 
 operator 5 {x Int} ++ {y Int} -> Int is x + y;
 
 operator 9 sq {x: Int} -> Int is x * x;
+
+function main is
+    x: Int = sq 5 ++ sq 10 in
+    y: Int = foo(sq 5, 5) in
+    printf("%d\n", x + y);
 
